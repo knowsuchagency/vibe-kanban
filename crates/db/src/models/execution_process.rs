@@ -576,4 +576,27 @@ impl ExecutionProcess {
             )),
         }
     }
+
+    /// Check if plan was approved for this task attempt by looking for ApprovalResponse for ExitPlanMode in logs
+    pub async fn was_plan_approved_for_attempt(
+        pool: &SqlitePool,
+        attempt_id: Uuid,
+    ) -> Result<bool, ExecutionProcessError> {
+        // Check if there's a log message indicating plan was approved
+        // We look for ApprovalResponse with tool_name=ExitPlanMode and approval_status=Approved
+        let result: (i64,) = sqlx::query_as(
+            r#"SELECT COUNT(*) FROM execution_process_logs
+               WHERE execution_process_id IN (
+                   SELECT id FROM execution_processes WHERE task_attempt_id = ?
+               )
+               AND log_entry LIKE '%"type":"approval_response"%'
+               AND log_entry LIKE '%"tool_name":"ExitPlanMode"%'
+               AND log_entry LIKE '%"Approved"%'"#,
+        )
+        .bind(attempt_id)
+        .fetch_one(pool)
+        .await?;
+
+        Ok(result.0 > 0)
+    }
 }

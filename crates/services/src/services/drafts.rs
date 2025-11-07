@@ -118,6 +118,22 @@ impl DraftsService {
             return Ok(d);
         }
 
+        // Check if plan was approved - if so, use DEFAULT variant (None)
+        // Otherwise, try to get the last used variant from the latest execution
+        let variant = if ExecutionProcess::was_plan_approved_for_attempt(self.pool(), attempt_id)
+            .await
+            .unwrap_or(false)
+        {
+            // Plan was approved, switch to DEFAULT variant
+            None
+        } else {
+            // Keep using the same variant as before
+            ExecutionProcess::latest_executor_profile_for_attempt(self.pool(), attempt_id)
+                .await
+                .ok()
+                .and_then(|profile| profile.variant)
+        };
+
         let _ = Draft::upsert(
             self.pool(),
             &UpsertDraft {
@@ -126,7 +142,7 @@ impl DraftsService {
                 retry_process_id: None,
                 prompt: "".to_string(),
                 queued: false,
-                variant: None,
+                variant,
                 image_ids: None,
             },
         )

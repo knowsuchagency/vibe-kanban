@@ -1102,7 +1102,11 @@ impl ClaudeLogProcessor {
                 // Convert denials and timeouts to visible entries (matching Codex behavior)
                 let entry_opt = match approval_status {
                     ApprovalStatus::Pending => None,
-                    ApprovalStatus::Approved => None,
+                    ApprovalStatus::Approved => {
+                        // Note: Plan approval signal will be sent by the client when it writes ApprovalResponse to logs
+                        // We don't need to do anything here since the ApprovalResponse itself serves as the signal
+                        None
+                    }
                     ApprovalStatus::Denied { reason } => Some(NormalizedEntry {
                         timestamp: None,
                         entry_type: NormalizedEntryType::UserFeedback {
